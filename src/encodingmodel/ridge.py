@@ -81,12 +81,14 @@ class MultiRidge:
             Y: 2-dimensional tensor of shape (n, m) where m is the number of
                targets.
         """
-        self.Xm = X.mean(dim=0, keepdim=True)
-        X = X - self.Xm
-        if self.scale_X:
-            self.Xs = X.std(dim=0, keepdim=True)
-            self.Xs[self.Xs < self.scale_thresh] = 1
-            X = X / self.Xs
+        self.Xm = X.mean(dim=0, keepdim=True) # get the mean of each feature
+        X = X - self.Xm # center the X
+        if self.scale_X: # when scale_X set to True
+            self.Xs = X.std(dim=0, keepdim=True) 
+            self.Xs[self.Xs < self.scale_thresh] = 1 # cap at 1 for st below a threshod
+            X = X / self.Xs # standardize the X
+
+        
 
         self.X_t = X.t()
         _, S, V = self.X_t.svd()

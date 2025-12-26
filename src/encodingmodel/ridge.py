@@ -88,42 +88,47 @@ class MultiRidge:
             self.Xs[self.Xs < self.scale_thresh] = 1 # cap at 1 for st below a threshod
             X = X / self.Xs # standardize the X
 
-        
 
-        self.X_t = X.t()
-        _, S, V = self.X_t.svd()
-        self.e = S.pow_(2)
-        self.Q = self.X_t @ V
+        # -------- Precompute SVD of X -----------
+        self.X_t = X.t() # transpose X to get d x n (d: number of features, n: number of samples)
+        _, S, V = self.X_t.svd() # SVD of X': X' = U S V'; V is n x n, S is vector of singular values
+        self.e = S.pow_(2) # square the singular values to get e
+        self.Q = self.X_t @ V # V is orthogonal, so X'V = U S; Q is d x n, which each column is a singular vector scaled by its singular value
+        # ---------------------------------------
 
-        self.Y = Y
-        self.Ym = Y.mean(dim=0)
+        self.Y = Y # n x m (m: number of targets); outputs
+        self.Ym = Y.mean(dim=0) # get the mean of each target
 
         return self
 
-    def _compute_pred_interms(self, y_idx, X_te_p):
-        Y_j, Ym_j = self.Y[:, y_idx], self.Ym[y_idx]
-        p_j = self.X_t @ (Y_j - Ym_j)
-        r_j = self.Q.t() @ p_j
-        N_te_j = X_te_p @ p_j
+    def _compute_pred_interms(self, y_idx, X_te_p): # y_idx: index of target, X_te_p: X_te @ Q
+        Y_j, Ym_j = self.Y[:, y_idx], self.Ym[y_idx] # get the j-th target and its mean (y_idx: index of target)
+
+        p_j = self.X_t @ (Y_j - Ym_j) # centered Y_j; this computes X' (Y_j - Ym_j), which means projecting the centered target onto the feature space
+
+        r_j = self.Q.t() @ p_j # Q is d x n, so Q' is n x d; this computes (X'V)'X'(Y_j - Ym_j), which means projecting p_j onto the space spanned by the right singular vectors of X'
+
+        N_te_j = X_te_p @ p_j # X_te_p is X_te @ Q; this computes X_te @ Q @ X' (Y_j - Ym_j); X_te is the test feature matrix
+
         return Ym_j, r_j, N_te_j
 
     def _predict_single(self, l, M_te, Ym_j, r_j, N_te_j):
         Yhat_te_j = (1 / l) * (N_te_j - M_te @ (r_j / (self.e + l))) + Ym_j
         return Yhat_te_j
 
-    def _compute_single_beta(self, l, y_idx):
+    def _compute_single_beta(self, l, y_idx): # l: regularization value, y_idx: index of target
         Y_j, Ym_j = self.Y[:, y_idx], self.Ym[y_idx]
         beta = (1 / l) * (
             self.X_t @ (Y_j - Ym_j)
-            - self.Q / (self.e + l) @ self.Q.t() @ self.X_t @ (Y_j - Ym_j)
-        )
-        return beta
+            - self.Q / (self.e + l) @ self.Q.t() @ self.X_t @ (Y_j - Ym_j) 
+        ) # this is just the ridge regression formula as given in the file docstring
+        return beta # d x 1, where d is the number of features, for the y_idx-th target
 
-    def get_model_weights_and_bias(self, l_idxs):
-        betas = torch.zeros((self.X_t.shape[0], len(l_idxs)))
+    def get_model_weights_and_bias(self, l_idxs): # l_idxs: list of indexes of regularization values
+        betas = torch.zeros((self.X_t.shape[0], len(l_idxs))) # d x M, where M is the number of regularization values and d is the number of features
         for j, l_idx in enumerate(l_idxs):
-            l = self.ls[l_idx]
-            betas[:, j] = self._compute_single_beta(l, j)
+            l = self.ls[l_idx] # self.ls is the list of regularization values
+            betas[:, j] = self._compute_single_beta(l, j) # store the beta for the j-th target with regularization value l
         return betas, self.Ym
 
     def get_prediction_scores(self, X_te, Y_te, scoring):
@@ -140,13 +145,13 @@ class MultiRidge:
         Returns a (m, M) torch tensor of scores, where M is the number of
         regularization values.
         """
-        X_te = X_te - self.Xm
+        X_te = X_te - self.Xm # center the test features with training mean (why not use test mean?)
         if self.scale_X:
-            X_te = X_te / self.Xs
-        M_te = X_te @ self.Q
+            X_te = X_te / self.Xs # standardize the test features with training std
+        M_te = X_te @ self.Q # M_te size n x n (what is this matrix representing?)
 
-        scores = torch.zeros(Y_te.shape[1], len(self.ls), dtype=X_te.dtype)
-        for j, Y_te_j in enumerate(Y_te.t()):
+        scores = torch.zeros(Y_te.shape[1], len(self.ls), dtype=X_te.dtype) # m x M, where m is the number of targets, M is the number of regularization values
+        for j, Y_te_j in enumerate(Y_te.t()): # iterate over each target; ???
             Ym_j, r_j, N_te_j = self._compute_pred_interms(j, X_te)
             for k, l in enumerate(self.ls):
                 Yhat_te_j = self._predict_single(l, M_te, Ym_j, r_j, N_te_j)
@@ -181,7 +186,7 @@ class MultiRidge:
         return Yhat_te
 
 
-class RidgeCVEstimator:
+class RidgeCVEstimator: # this class performs cross-validated ridge regression to select the best regularization parameter with best cross-validation score
     def __init__(self, ls, cv, scoring, scale_X=True, scale_thresh=1e-8):
         """Cross-validated ridge estimator.
 

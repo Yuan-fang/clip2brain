@@ -12,7 +12,7 @@ from util.model_config import *
 def computeRSM(model, feature_dir, subj=1):
     feature_path = "%s/subj%d/%s.npy" % (feature_dir, subj, model)
     feature = np.load(feature_path).squeeze()
-    rsm = np.corrcoef(feature)
+    rsm = np.corrcoef(feature) # yz - this is qutie straigtfoward
     return rsm
 
 

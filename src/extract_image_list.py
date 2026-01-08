@@ -63,12 +63,14 @@ if __name__ == "__main__":
             "%s/output/coco_ID_of_repeats_subj%02d.npy" % (args.output_dir, args.subj),
             image_list,
         )
+        #yz: image id saved as coco_ID_of_repeats_subj%02d.npy
 
     elif args.type == "trial":
         trial_list = extract_repeat_trials_list(stim, args.subj)
         np.save(
             "%s/output/trials_subj%02d.npy" % (args.output_dir, args.subj), trial_list
         )
+        #yz: trial id saved as trials_subj%02d.npy
 
     else:
         raise TypeError("please correct return type to cocoId or trial")

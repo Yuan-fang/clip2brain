@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import argparse
 
-
+# yz - get the img id index from specific subj
 def extract_repeat_img_list(stim, subj):
     """
     :param stim: stimulus info file
@@ -19,7 +19,7 @@ def extract_repeat_img_list(stim, subj):
     image_id_list = list(stim.cocoId[stim[col_name] != 0])
     return np.array(image_id_list)
 
-
+# yz: get the img trials index from specific subj
 def extract_repeat_trials_list(stim, subj):
     """
     :param stim: stimulus info file
@@ -32,7 +32,7 @@ def extract_repeat_trials_list(stim, subj):
     all_rep_trials_list = list()
     for rep in range(3):
         col_name = "subject%d_rep%01d" % (subj, rep)
-        trial_id_list = list(stim[col_name][stim[col_name] != 0])
+        trial_id_list = list(stim[col_name][stim[col_name] != 0]) # yz: here first get index then access the value - trial id
         all_rep_trials_list.append(trial_id_list)
     all_rep_trials_list = (
         np.array(all_rep_trials_list).T - 1

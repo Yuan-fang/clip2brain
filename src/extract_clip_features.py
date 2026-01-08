@@ -197,6 +197,8 @@ def extract_visual_resnet_feature():
         print("Running PCA")
         print("feature shape: ")
         print(f.shape)
+
+        
         pca = PCA(n_components=min(f.shape[0], 64), svd_solver="auto")
 
         fp = pca.fit_transform(f)
@@ -204,6 +206,7 @@ def extract_visual_resnet_feature():
         print(fp.shape)
 
         np.save("%s/visual_layer_resnet_%01d.npy" % (feature_output_dir, l), fp)
+        # yz- visual_layer_resnet_%01d.npy is also after pca activation.
 
 
 def extract_visual_transformer_feature():
@@ -423,6 +426,7 @@ if __name__ == "__main__":
                     "%s/clip_visual_resnet.npy" % feature_output_dir, visual_res_feat
                 )
     else:
+        # yz: here is to load the image ids.
         all_coco_ids = np.load(
             "%s/coco_ID_of_repeats_subj%02d.npy" % (args.project_output_dir, args.subj)
         )
@@ -432,6 +436,8 @@ if __name__ == "__main__":
         # extract_top1_obejct_base_text_feature()
         # extract_visual_transformer_feature()
         # extract_vibert_feature()
+
+        
         visual_res_feat = extract_last_layer_feature(
             model_name="RN50", modality="vision"
         )

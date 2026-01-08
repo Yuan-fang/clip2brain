@@ -191,7 +191,7 @@ def extract_visual_transformer_feature(model_name):
     fp = pca.fit_transform(feature_list) # yz- it should be sized  (n_images, 64)
     print(fp.shape)
 
-    np.save("%s/YFCC_%s_layer_n-1.npy" % (feature_output_dir, model_name), fp)
+    np.save("%s/YFCC_%s_layer_n-1.npy" % (feature_output_dir, model_name), fp) #yz- here output shall be YFCC_%s_layer_n-1.npy, which is pca-ed activations.
     return
 
 

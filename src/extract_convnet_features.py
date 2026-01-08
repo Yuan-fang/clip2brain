@@ -50,12 +50,16 @@ def extract_resnet_prePCA_feature():
 
             for i, f in enumerate(features.values()):
                 # print(f.size())
+
+                # yz - here it seems addressing the 4-d features with some subsamplling and pooling flow
                 if len(f.size()) > 3:
                     c = f.data.shape[1]  # number of channels
                     k = int(np.floor(np.sqrt(subsampling_size / c)))
                     tmp = nn.functional.adaptive_avg_pool2d(f.data, (k, k))
                     # print(tmp.size())
                     compressed_features[i].append(tmp.squeeze().cpu().numpy().flatten())
+
+                
                 else:
                     compressed_features[i].append(
                         f.squeeze().data.cpu().numpy().flatten()

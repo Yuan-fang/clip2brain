@@ -1,4 +1,5 @@
 "This script loads feature spaces and prepares it for encoding model"
+# yz - this code suppose activations has been done, just the pre-step before encoding models
 import numpy as np
 from tqdm import tqdm
 import pandas as pd

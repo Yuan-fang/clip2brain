@@ -27,6 +27,7 @@ def extract_last_layer_feature(model, dataset="YFCC"):
     print("Number of Images: {}".format(len(all_images_paths)))
 
     if dataset == "YFCC":
+        # yz: common preprocessing
         preprocess = transforms.Compose(
             [
                 transforms.Resize(224),
@@ -39,14 +40,18 @@ def extract_last_layer_feature(model, dataset="YFCC"):
             ]
         )
 
+        # yz: .pt, shoudl be a pretraiend model - PyTorch checkpoint
         ckpt_path = "models/%s_base_25ep.pt" % model
-        ckpt = torch.load(ckpt_path, map_location="cpu")
+        ckpt = torch.load(ckpt_path, map_location="cpu") # yz: load the model weights
+
+        #yz ---------- get the pretrained model from the check point ------
         state_dict = OrderedDict()
         for k, v in ckpt["state_dict"].items():
             state_dict[k.replace("module.", "")] = v
 
         old_args = ckpt["args"]
         print("=> creating model: {}".format(old_args.model))
+        
         model = getattr(blip_models, old_args.model)(
             rand_embed=False,
             ssl_mlp_dim=old_args.ssl_mlp_dim,
@@ -54,11 +59,13 @@ def extract_last_layer_feature(model, dataset="YFCC"):
         )
 
         model.load_state_dict(state_dict, strict=True)
+        # yz ---------------------
 
     elif "IC" in dataset:
         import clip
 
         model, _ = clip.load("RN50", device=device)
+        
         # preprocess = transforms.Compose(
         #     [
         #         transforms.RandomResizedCrop(224),
@@ -69,6 +76,7 @@ def extract_last_layer_feature(model, dataset="YFCC"):
         #     ]
         # )
         # adjust param according to paper
+        # yz ---- these are for CLIP
         preprocess = transforms.Compose(
             [
                 transforms.RandomResizedCrop(224),
@@ -82,6 +90,8 @@ def extract_last_layer_feature(model, dataset="YFCC"):
         ckpt_path = "models/%s.pt" % dataset
         print("Loading checkpoint from: " + ckpt_path)
         ckpt = torch.load(ckpt_path, map_location="cpu")
+
+        # yz: again - load from checkpoint 
         state_dict = OrderedDict()
         for k, v in ckpt["state_dict"].items():
             state_dict[k.replace("module.", "")] = v
@@ -104,10 +114,12 @@ def extract_last_layer_feature(model, dataset="YFCC"):
 
     all_features = []
 
-    for p in tqdm(all_images_paths):
-        image = preprocess(Image.open(p)).unsqueeze(0).to(device)
+    for p in tqdm(all_images_paths): # yz: iterate all the images one byone
+        
+        image = preprocess(Image.open(p)).unsqueeze(0).to(device) # yz: make it a batch
+        
         with torch.no_grad(), torch.cuda.amp.autocast():
-            image_features = model.encode_image(image)
+            image_features = model.encode_image(image) # yz; returns the final CLIP embedding in the joint space - CLIP specific API
             # print(image_features.shape)
 
         all_features.append(image_features.cpu().data.numpy())
@@ -165,14 +177,18 @@ def extract_visual_transformer_feature(model_name):
 
             feature_list.append(features[layer].squeeze().cpu().data.numpy().flatten())
 
+    # yz: this got the clip features for all images
     feature_list = np.array(feature_list)
+
 
     from sklearn.decomposition import PCA
 
     print("Running PCA...")
+
+    # yz: set up the pca model with 64 comps (but why?)
     pca = PCA(n_components=64, whiten=True, svd_solver="full")
 
-    fp = pca.fit_transform(feature_list)
+    fp = pca.fit_transform(feature_list) # yz- it should be sized  (n_images, 64)
     print(fp.shape)
 
     np.save("%s/YFCC_%s_layer_n-1.npy" % (feature_output_dir, model_name), fp)
@@ -208,10 +224,10 @@ if __name__ == "__main__":
     print(args)
 
     if args.layer == "final":
-        extract = extract_last_layer_feature
+        extract = extract_last_layer_feature #yz: get the last layer, penultimate or logits???
         layer_tag = ""
     else:
-        extract = extract_visual_transformer_feature
+        extract = extract_visual_transformer_feature 
         layer_tag = "_layer_n-1"
 
     if args.subj == 0:
